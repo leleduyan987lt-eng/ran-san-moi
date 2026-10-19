@@ -29,6 +29,11 @@ html = r'''<!DOCTYPE html>
   .touch button { padding:11px 0; font-size:19px; background:#263449; border:1px solid #3b4b63; touch-action: manipulation; }
   .touch .empty { visibility:hidden; }
   .help { color:#9caec8; text-align:center; font-size:12px; line-height:1.55; margin-top:12px; }
+  .yt-section { margin: 12px auto; padding: 10px; max-width: 340px; border:1px solid #334155; border-radius:12px; background:#111b2d; text-align:center; }
+  .yt-title { color:#dbeafe; font-size:13px; margin-bottom:8px; }
+  #youtube-player { width:320px; max-width:100%; min-height:200px; margin:0 auto; overflow:hidden; }
+  #youtube-player iframe { max-width:100%; }
+  .yt-link { display:inline-block; margin-top:8px; color:#93c5fd; font-size:12px; }
   @media (max-width:420px) { .value {font-size:20px;} .scorebox {padding:8px 5px;} button {padding:10px 12px;} }
 </style>
 </head>
@@ -41,18 +46,24 @@ html = r'''<!DOCTYPE html>
   <div class="gamebox">
     <canvas id="board" width="480" height="480" tabindex="0" aria-label="Bàn chơi rắn săn mồi"></canvas>
   </div>
-  <div class="status" id="status">Bấm “Bật âm thanh” để nghe tiếng thử, sau đó bấm “Bắt đầu”.</div>
+  <div class="status" id="status">Bấm “Bắt đầu” để chơi. Bật nhạc online từ YouTube nếu có kết nối Internet.</div>
   <div class="actions">
     <button id="start">▶ Bắt đầu</button>
     <button id="pause" class="secondary">⏸ Tạm dừng</button>
     <button id="restart" class="secondary">↻ Chơi lại</button>
     <button id="sound" class="secondary" aria-pressed="false">🔇 Bật âm thanh</button>
+    <button id="music" class="secondary" aria-pressed="false">🎵 Nhạc online: Tắt</button>
+  </div>
+  <div class="yt-section">
+    <div class="yt-title">🎧 Nhạc online từ YouTube (cần Internet)</div>
+    <div id="youtube-player"></div>
+    <a class="yt-link" href="https://www.youtube.com/watch?v=kCIjgr5Sgi4" target="_blank" rel="noopener noreferrer">Mở video trên YouTube</a>
   </div>
   <div class="touch" aria-label="Nút điều khiển">
     <button class="empty" tabindex="-1">·</button><button data-dir="up" aria-label="Lên">⬆️</button><button class="empty" tabindex="-1">·</button>
     <button data-dir="left" aria-label="Trái">⬅️</button><button data-dir="down" aria-label="Xuống">⬇️</button><button data-dir="right" aria-label="Phải">➡️</button>
   </div>
-  <div class="help">Máy tính: dùng ↑ ↓ ← → hoặc W A S D. Điện thoại/máy tính bảng: dùng các nút mũi tên.<br>Ăn táo 🍎 để được 10 điểm mỗi quả. Nhấn Space để tạm dừng. Bấm “Bật âm thanh” trước khi chơi; có thể bấm lại để tắt tiếng.</div>
+  <div class="help">Máy tính: dùng ↑ ↓ ← → hoặc W A S D. Điện thoại/máy tính bảng: dùng các nút mũi tên.<br>Ăn táo 🍎 để được 10 điểm mỗi quả. Nhấn Space để tạm dừng. Âm thanh hiệu ứng có thể bật/tắt riêng. Nhạc online phát khi chơi, tạm dừng cùng game và dừng khi thua hoặc thắng.</div>
 </div>
 <script>
 (() => {
@@ -65,12 +76,41 @@ html = r'''<!DOCTYPE html>
   const pauseBtn = document.getElementById('pause');
   const restartBtn = document.getElementById('restart');
   const soundBtn = document.getElementById('sound');
+  const musicBtn = document.getElementById('music');
   const CELLS = 20, SIZE = canvas.width / CELLS;
   let snake, food, dir, nextDir, score, started, paused, over, lastStep, lastTime;
   // Âm thanh mặc định tắt để trình duyệt không chặn phát tự động.
   // Người chơi bấm nút “Bật âm thanh” để mở tiếng và nghe thử ngay.
   let soundOn = false;
+  let musicOn = false;
   let audioCtx = null;
+  // Phát nhạc trực tuyến từ trình phát YouTube nhúng, không cần file MP3.
+  // Bài hát: Chờ Đợi Có Đáng Sợ - Andiez (MV chính thức).
+  // Nếu YouTube chặn nhúng, hãy mở video trực tiếp trên YouTube.
+  const YOUTUBE_VIDEO_ID = 'kCIjgr5Sgi4';
+  let youtubePlayer = null;
+  let youtubeReady = false;
+  window.onYouTubeIframeAPIReady = function() {
+    youtubePlayer = new YT.Player('youtube-player', {
+      width: '320', height: '200', videoId: YOUTUBE_VIDEO_ID,
+      playerVars: { playsinline: 1, controls: 1, rel: 0, loop: 1, playlist: YOUTUBE_VIDEO_ID },
+      events: {
+        onReady: function() {
+          youtubeReady = true;
+          if (musicOn && started && !paused && !over) syncMusic(false);
+        },
+        onError: function() {
+          statusEl.textContent = 'YouTube không phát được trong game. Hãy bấm “Mở video trên YouTube” bên dưới trình phát.';
+        }
+      }
+    });
+  };
+  const youtubeApiScript = document.createElement('script');
+  youtubeApiScript.src = 'https://www.youtube.com/iframe_api';
+  youtubeApiScript.onerror = function() {
+    statusEl.textContent = 'Không tải được trình phát YouTube. Hãy kiểm tra kết nối Internet hoặc mở video trực tiếp.';
+  };
+  document.head.appendChild(youtubeApiScript);
 
   // Tạo âm thanh ngay trong trình duyệt, không cần tải file MP3.
   // AudioContext được khởi tạo trong thao tác bấm nút để tránh chính sách chặn autoplay.
@@ -102,6 +142,37 @@ html = r'''<!DOCTYPE html>
     oscillator.start(startAt);
     oscillator.stop(startAt + duration + 0.025);
   }
+  // Tạm dừng/tiếp tục trình phát YouTube theo trạng thái của game.
+  function stopMusic(resetPosition = false) {
+    if (!youtubePlayer || !youtubeReady) return;
+    try {
+      if (resetPosition) {
+        youtubePlayer.pauseVideo();
+        youtubePlayer.seekTo(0, true);
+      } else {
+        youtubePlayer.stopVideo();
+      }
+    } catch (e) { /* Trình phát có thể chưa sẵn sàng */ }
+  }
+  function syncMusic(restart = false) {
+    if (!youtubePlayer || !youtubeReady) {
+      if (musicOn && started && !paused && !over) {
+        statusEl.textContent = 'Đang tải trình phát YouTube… Nếu nhạc chưa phát, bấm nút nhạc thêm lần nữa.';
+      }
+      return;
+    }
+    try {
+      if (musicOn && started && !paused && !over) {
+        if (restart) youtubePlayer.seekTo(0, true);
+        youtubePlayer.playVideo();
+      } else {
+        youtubePlayer.pauseVideo();
+      }
+    } catch (e) {
+      statusEl.textContent = 'Chưa điều khiển được trình phát YouTube. Hãy thử bấm bật nhạc lại.';
+    }
+  }
+
   function soundEat() {
     // Hai nốt sáng, dễ nhận ra khi rắn ăn táo.
     beep(784, 0.10, 'sine', 0.13, 0);
@@ -130,14 +201,16 @@ html = r'''<!DOCTYPE html>
     return p;
   }
   function reset() {
+    stopMusic(true);
     snake = [{x:9,y:10},{x:8,y:10},{x:7,y:10}];
     dir = {x:1,y:0}; nextDir = {x:1,y:0};
     score = 0; started = false; paused = false; over = false;
     food = randomFood(); lastStep = 0; lastTime = 0;
     scoreEl.textContent = '0'; bestEl.textContent = '0';
-    statusEl.textContent = 'Bấm “Bật âm thanh” để nghe tiếng thử, sau đó bấm “Bắt đầu”.';
+    statusEl.textContent = 'Bấm “Bắt đầu” để chơi. Bật nhạc online từ YouTube nếu có kết nối Internet.';
     startBtn.textContent = '▶ Bắt đầu'; pauseBtn.textContent = '⏸ Tạm dừng';
     soundBtn.textContent = soundOn ? '🔊 Âm thanh: Bật' : '🔇 Bật âm thanh';
+    musicBtn.textContent = musicOn ? '🎵 Nhạc online: Bật' : '🎵 Nhạc online: Tắt';
     soundBtn.setAttribute('aria-pressed', String(soundOn));
     draw();
   }
@@ -153,6 +226,7 @@ html = r'''<!DOCTYPE html>
     const body = eating ? snake : snake.slice(0, -1);
     if (head.x < 0 || head.x >= CELLS || head.y < 0 || head.y >= CELLS || body.some(p => p.x === head.x && p.y === head.y)) {
       over = true; started = false;
+      stopMusic();
       soundGameOver();
       statusEl.textContent = `💥 Game Over! Bạn đạt ${score} điểm. Bấm “Chơi lại” để thử lần nữa.`;
       startBtn.textContent = '▶ Bắt đầu lại';
@@ -163,7 +237,7 @@ html = r'''<!DOCTYPE html>
       score += 10; scoreEl.textContent = String(score); bestEl.textContent = String(score);
       soundEat();
       if (snake.length >= CELLS*CELLS) {
-        over = true; started = false; soundWin(); statusEl.textContent = `🏆 Tuyệt vời! Bạn đã lấp đầy bàn chơi với ${score} điểm!`; draw(); return;
+        over = true; started = false; stopMusic(); soundWin(); statusEl.textContent = `🏆 Tuyệt vời! Bạn đã lấp đầy bàn chơi với ${score} điểm!`; draw(); return;
       }
       food = randomFood();
     } else snake.pop();
@@ -207,6 +281,7 @@ html = r'''<!DOCTYPE html>
     if (over) reset();
     started = true; paused = false;
     soundStart();
+    syncMusic(true);
     startBtn.textContent='▶ Đang chơi';
     statusEl.textContent='Đang chơi! Ăn táo 🍎 và tránh tường cùng thân rắn.';
     canvas.focus(); draw();
@@ -216,6 +291,7 @@ html = r'''<!DOCTYPE html>
     if (!started) { startGame(); return; }
     paused = !paused;
     beep(paused ? 392 : 587, 0.09, 'sine', 0.03);
+    syncMusic();
     pauseBtn.textContent = paused ? '▶ Tiếp tục' : '⏸ Tạm dừng';
     statusEl.textContent = paused ? '⏸ Đã tạm dừng. Nhấn “Tiếp tục” hoặc Space.' : 'Đang chơi! Ăn táo 🍎 và tránh tường cùng thân rắn.';
     draw();
@@ -238,7 +314,19 @@ html = r'''<!DOCTYPE html>
   }));
   startBtn.addEventListener('click', startGame);
   pauseBtn.addEventListener('click', togglePause);
-  restartBtn.addEventListener('click', reset);
+  restartBtn.addEventListener('click', () => { stopMusic(); reset(); });
+  musicBtn.addEventListener('click', () => {
+    musicOn = !musicOn;
+    musicBtn.textContent = musicOn ? '🎵 Nhạc online: Bật' : '🎵 Nhạc online: Tắt';
+    musicBtn.setAttribute('aria-pressed', String(musicOn));
+    if (musicOn) {
+      if (started && !paused && !over) syncMusic(true);
+      else statusEl.textContent = '🎵 Đã bật nhạc online. Bài hát sẽ phát khi bạn bắt đầu chơi.';
+    } else {
+      stopMusic(true);
+      statusEl.textContent = 'Đã tắt nhạc online.';
+    }
+  });
   soundBtn.addEventListener('click', async () => {
     if (soundOn) {
       soundOn = false;
@@ -272,7 +360,9 @@ html = r'''<!DOCTYPE html>
 </body>
 </html>'''
 
-st.iframe(html, height=770, tab_index=0, alt="Game rắn săn mồi")
+st.iframe(html, height=1120, tab_index=0, alt="Game rắn săn mồi có nhạc YouTube trực tuyến")
+
+st.info("Bản này phát trực tiếp từ MV chính thức ‘Chờ Đợi Có Đáng Sợ’ của Andiez trên YouTube, không cần MP3. Cần có Internet. Nhạc phát khi chơi, tạm dừng khi tạm dừng game và dừng khi thua hoặc thắng. Nếu YouTube chặn phát nhúng, hãy mở video trực tiếp bên dưới trình phát.")
 
 with st.expander("❓ Nếu game không nhận phím mũi tên"):
     st.write("Bấm chuột một lần lên bàn chơi, sau đó dùng phím mũi tên hoặc W/A/S/D. Bạn cũng có thể bấm các nút mũi tên bên dưới bàn chơi.")
