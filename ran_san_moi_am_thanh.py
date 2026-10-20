@@ -65,7 +65,6 @@ html = r'''<!DOCTYPE html>
   const pauseBtn = document.getElementById('pause');
   const restartBtn = document.getElementById('restart');
   const soundBtn = document.getElementById('sound');
-  const bgMusic = new Audio('https://raw.githubusercontent.com/leleduyan987lt-eng/ran-san-moi/main/hihi.mp3');
 bgMusic.loop = true;
 bgMusic.volume = 0.35;
   const CELLS = 20, SIZE = canvas.width / CELLS;
@@ -233,7 +232,6 @@ bgMusic.volume = 0.35;
     if (over) reset();
     started = true; paused = false;
     bgMusic.currentTime = 0;
-    bgMusic.play().catch(() => {});
     bgMusic.play().catch(() => {});
     soundStart();
     startBtn.textContent='▶ Đang chơi';
