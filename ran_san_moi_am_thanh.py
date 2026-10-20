@@ -65,8 +65,8 @@ html = r'''<!DOCTYPE html>
   const pauseBtn = document.getElementById('pause');
   const restartBtn = document.getElementById('restart');
   const soundBtn = document.getElementById('sound');
-bgMusic.loop = true;
-bgMusic.volume = 0.35;
+  bgMusic.loop = true;
+  bgMusic.volume = 0.35;
   const CELLS = 20, SIZE = canvas.width / CELLS;
   let snake, food, dir, nextDir, score, started, paused, over, lastStep, lastTime;
   // Âm thanh mặc định tắt để trình duyệt không chặn phát tự động.
