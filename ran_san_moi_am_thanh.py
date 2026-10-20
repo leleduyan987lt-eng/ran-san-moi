@@ -74,6 +74,9 @@ bgMusic.volume = 0.35;
   // Người chơi bấm nút “Bật âm thanh” để mở tiếng và nghe thử ngay.
   let soundOn = false;
   let audioCtx = null;
+  const bgMusic = new Audio("https://raw.githubusercontent.com/leleduyan987lt-eng/ran-san-moi/main/wtf.mp3");
+  bgMusic.loop = true;
+  bgMusic.volume = 0.35;
   // Tạo âm thanh ngay trong trình duyệt, không cần tải file MP3.
   // AudioContext được khởi tạo trong thao tác bấm nút để tránh chính sách chặn autoplay.
   async function getAudioContext() {
@@ -174,6 +177,8 @@ bgMusic.volume = 0.35;
       over = true; started = false;
       bgMusic.pause();
       bgMusic.currentTime = 0;
+      bgMusic.pause();
+      bgMusic.currentTime = 0;
       soundGameOver();
       statusEl.textContent = `💥 Game Over! Bạn đạt ${score} điểm. Bấm “Chơi lại” để thử lần nữa.`;
       startBtn.textContent = '▶ Bắt đầu lại';
@@ -227,6 +232,8 @@ bgMusic.volume = 0.35;
   function startGame() {
     if (over) reset();
     started = true; paused = false;
+    bgMusic.currentTime = 0;
+    bgMusic.play().catch(() => {});
     bgMusic.play().catch(() => {});
     soundStart();
     startBtn.textContent='▶ Đang chơi';
